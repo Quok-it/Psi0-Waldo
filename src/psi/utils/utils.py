@@ -184,9 +184,9 @@ def resolve_path(path: Union[str, Path], subdir="data", auto_download=False) -> 
             return filepath
         
     if auto_download:
-        # auto download the file from remmote huggingface repo "songlinwei/psi-data" and extract to the data dir
+        # auto download the file from remmote huggingface repo "USC-PSI-Lab/psi-data" and extract to the data dir
         from huggingface_hub import snapshot_download
-        repo_id = "songlinwei/psi-data"
+        repo_id = "USC-PSI-Lab/psi-data"
         filename = path if isinstance(path, str) else path.name
         try:
 
@@ -201,7 +201,7 @@ def resolve_path(path: Union[str, Path], subdir="data", auto_download=False) -> 
             # print(zip_file);
             # auto download
             snapshot_download(
-                repo_id="songlinwei/psi-data",
+                repo_id="USC-PSI-Lab/psi-data",
                 allow_patterns=[zip_file],
                 local_dir=os.getcwd(),
                 repo_type="dataset",

@@ -9,8 +9,8 @@
 
 [![arXiv](https://img.shields.io/badge/arXiv-2505.03233-df2a2a.svg)](https://arxiv.org/abs/2603.12263)
 [![Static Badge](https://img.shields.io/badge/Project-Page-a)](https://psi-lab.ai/Psi0)
-[![Model](https://img.shields.io/badge/Hugging%20Face-Model-yellow)](https://huggingface.co/songlinwei/psi-model)
-[![Data](https://img.shields.io/badge/Hugging%20Face-Data-pink)](https://huggingface.co/datasets/songlinwei/psi-data)
+[![Model](https://img.shields.io/badge/Hugging%20Face-Model-yellow)](https://huggingface.co/USC-PSI-Lab/psi-model)
+[![Data](https://img.shields.io/badge/Hugging%20Face-Data-pink)](https://huggingface.co/datasets/USC-PSI-Lab/psi-data)
 [![License](https://img.shields.io/badge/License-Apache2.0-blue.svg)](./LICENSE)
 
 </div>
@@ -169,7 +169,7 @@ Now it's ready to finetune $\Psi_0$.
 
 > ✔️ Suppose the data is already collected and processed. Now we can proceed to fine-tune the $\Psi_0$ model.
 
-> 📝 Here we illustrate by using the pre-collected data from [Huggingface psi-data](https://huggingface.co/datasets/songlinwei/psi-data/tree/main/real).
+> 📝 Here we illustrate by using the pre-collected data from [Huggingface psi-data](https://huggingface.co/datasets/USC-PSI-Lab/psi-data/tree/main/real).
 
 Set up the environment variables following `.env.sample`. The environment variables will be loaded by the `dotenv.load_dotenv()` in python.
 ```
@@ -188,7 +188,7 @@ Download the collected real-world data and extract it:
 ```
 export task=Pick_bottle_and_turn_and_pour_into_cup
 
-hf download songlinwei/psi-data \
+hf download USC-PSI-Lab/psi-data \
   real/$task.zip \
   --local-dir=$PSI_HOME/data \
   --repo-type=dataset
@@ -284,7 +284,7 @@ We use [SIMPLE]() to benchmark $\Psi_0$ and all the baselines.
 [Coming soon]
 
 ### Data Generation
-> 📂 We also provide 5 pre-collected whole-body humanoid loco-manipulation tasks at [Huggingface psi-data](https://huggingface.co/datasets/songlinwei/psi-data/tree/main/real). If you want to use the existing simulation data, jump to the [Fine-Tuning](#training-sim)
+> 📂 We also provide 5 pre-collected whole-body humanoid loco-manipulation tasks at [Huggingface psi-data](https://huggingface.co/datasets/USC-PSI-Lab/psi-data/tree/main/real). If you want to use the existing simulation data, jump to the [Fine-Tuning](#training-sim)
 
 #### Motion-Planning Based Data Generation
 [Coming soon]
@@ -295,14 +295,14 @@ We use [SIMPLE]() to benchmark $\Psi_0$ and all the baselines.
 <a id="training-sim"></a>
 ### Fine-Tuning
 
-Download [SIMPLE task data](https://huggingface.co/datasets/songlinwei/psi-data/tree/main/simple) and extract it:
+Download [SIMPLE task data](https://huggingface.co/datasets/USC-PSI-Lab/psi-data/tree/main/simple) and extract it:
 
 > 💡 Dont forget `source .env` first before following below commands.
 
 ```
 export task=G1WholebodyBendPick-v0
 
-hf download songlinwei/psi-data \
+hf download USC-PSI-Lab/psi-data \
   simple/$task$.zip \
   --local-dir=$PSI_HOME/data \
   --repo-type=dataset
@@ -392,7 +392,7 @@ python scripts/save_pretrain_qwen3vl_backbone.py
 Download pre-trained `psi-0` VLM backbone
 ```
 python scripts/data/download.py \
-  --repo-id=songlinwei/psi-models \
+  --repo-id=USC-PSI-Lab/psi-model \
   --remote-dir=pre.fast.egodex.2512241941/pretrained/ckpt_200000 \
   --local-dir=/hfm/cache/checkpoints/psi0/pre.fast.egodex.2512241941.ckpt200k \
   --repo-type=model
@@ -410,7 +410,7 @@ python scripts/save_posttrain_action_expert.py
 
 ## Checkpoints
 
-The released checkpoints on [HuggingFace Psi-Model](https://huggingface.co/songlinwei/psi-model) is listed
+The released checkpoints on [HuggingFace Psi-Model](https://huggingface.co/USC-PSI-Lab/psi-model) is listed
 
 | Checkpoint | Description | Remote Directory |
 |---|---|---|
@@ -430,7 +430,7 @@ and more variants for ablation studies:
 Download the selected models
 
 ```
-hf download songlinwei/psi-models \
+hf download USC-PSI-Lab/psi-model \
   --remote-dir=<remote dictory on huggingface repo>
   --local-dir=$PSI_HOME/cache/checkpoints \
   --repo-type=model

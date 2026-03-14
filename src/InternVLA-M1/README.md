@@ -21,7 +21,7 @@ bash scripts/deploy_internvla.sh
 
 1. download sim data
 ```bash
-huggingface-cli download --repo-type dataset songlinwei/psi-data --include simple/G1WholebodyBendPick-v0-psi0.zip --local-dir $DATA_DIR
+huggingface-cli download --repo-type dataset USC-PSI-Lab/psi-data --include simple/G1WholebodyBendPick-v0-psi0.zip --local-dir $DATA_DIR
 ```
 
 2. train on sim data
