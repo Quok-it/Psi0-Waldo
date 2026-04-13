@@ -28,3 +28,4 @@ pytest>=8.3.4
 datasets==3.6.0
 torchcodec==0.5
 lerobot @ git+https://github.com/huggingface/lerobot.git@f39652707caed42a7cd5ab36066da5663b9565eb
+matplotlib

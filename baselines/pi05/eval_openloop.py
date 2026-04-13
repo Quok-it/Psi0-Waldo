@@ -121,7 +121,7 @@ class TimingRecorder:
 
     def write_parquet(self, path: pathlib.Path) -> None:
         """Save the timings to a parquet file."""
-        logger.info(f"Writing timings to {path}")
+        print(f"Writing timings to {path}")
         frame = pl.DataFrame(self._timings)
         path.parent.mkdir(parents=True, exist_ok=True)
         frame.write_parquet(path)
@@ -140,19 +140,19 @@ def obs_fn(sample, prompt):
         # "observation/arm_joints": sample["observation.arm_joints"].numpy(),
         # "observation/hand_joints": sample["observation.hand_joints"].numpy(),
         # "observation/leg_joints": sample["observation.leg_joints"].numpy(),
-    # "observation/torso_rpy": sample["observation.prev_rpy"].numpy(),
+        # "observation/torso_rpy": sample["observation.prev_rpy"].numpy(),
         # "observation/base_height": sample["observation.prev_height"].numpy(),
         "states": sample["states"].numpy()[:28],
-        "prompt": f"g1/{prompt}" #"g1/Remove_the_cap_turn_on_the_faucet_and_fill_the_bottle_with_water",
+        "prompt": f"{prompt}" #"g1/Remove_the_cap_turn_on_the_faucet_and_fill_the_bottle_with_water",
     }
 
 def main(args: Args) -> None:
     from lerobot.common.datasets.lerobot_dataset import HF_LEROBOT_HOME
     from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
     import lerobot.common.datasets.lerobot_dataset as lerobot_dataset
-
-    # ds = LeRobotDataset("pick_n_squat", root="/hfm/pick_n_squat")
-    root_dir = f"{os.environ['DATA_HOME']}/simple/G1WholebodyBendPick-v0-psi0"
+    
+    
+    root_dir = f"{os.environ['DATA_HOME']}/simple/{args.task}"
     action_horizon = 30
     action_sequence_keys = ("action",)
     meta = lerobot_dataset.LeRobotDatasetMetadata(root_dir)
@@ -165,65 +165,24 @@ def main(args: Args) -> None:
     from_idx:int = dataset.episode_data_index["from"][episode_idx].item()
     to_idx:int = dataset.episode_data_index["to"][episode_idx].item()
     
-    import dataclasses
-    import enum
-    import logging
-    import socket
-    import numpy as np
-    import tyro
-    import numpy as np
-    import einops
-    from openpi.policies import policy as _policy
-    from openpi.policies import policy_config as _policy_config
-    from openpi.serving import websocket_policy_server
-    from openpi.training import config as _config
-
-    # @dataclasses.dataclass
-    # class Args2:
-    #     """Arguments for the serve_policy script."""
-
-    #     # Environment to serve the policy for. This is only used when serving default policies.
-    #     env: EnvMode = EnvMode.HFM
-
-    #     # If provided, will be used in case the "prompt" key is not present in the data, or if the model doesn't have a default
-    #     # prompt.
-    #     default_prompt: str | None = "g1/Remove_the_cap_turn_on_the_faucet_and_fill_the_bottle_with_water"
-
-    #     # Port to serve the policy on.
-    #     port: int = 8000
-    #     # Record the policy's behavior for debugging.
-    #     record: bool = False
-
-    #     # Specifies how to load the policy. If not provided, the default policy for the environment will be used.
-    #     policy: Checkpoint = dataclasses.field(default_factory=Checkpoint)
-
-    # args2 = Args2(
-    #     policy = Checkpoint(
-    #         config="pi05_finetune_pick_n_squat",
-    #         dir="/hfm/cache/openpi/checkpoints/pi05_finetune_pick_n_squat/pick_n_squat/20000"
-    #     )  
-    # )
-    # policy = _policy_config.create_trained_policy(
-    #     _config.get_config(args2.policy.config), args2.policy.dir, default_prompt=args2.default_prompt
-    # )
 
     policy = _websocket_client_policy.WebsocketClientPolicy(
         host=args.host,
         port=args.port,
         api_key=args.api_key,
     )
-    logger.info(f"Server metadata: {policy.get_server_metadata()}")
+    print(f"Server metadata: {policy.get_server_metadata()}")
 
     timing_recorder = TimingRecorder()
 
     l1_losses = []
     for i in tqdm.tqdm(range(from_idx, to_idx + 1, 10)):
         sample = dataset[i]
-        # print(sample.keys())
+
         # print(type(sample["action"])) # torch.Tensor, action
         inference_start = time.time()
         # print(f"============={i}=============")
-        obs = obs_fn(sample, prompt=args.task)
+        obs = obs_fn(sample, prompt=sample["task"])
         # print(obs["observation/image"].save(f"debug_obs_{i}.png"))
         obs["observation/image"] = np.array(obs["observation/image"], dtype=np.uint8)
         result = policy.infer(obs)
@@ -238,9 +197,9 @@ def main(args: Args) -> None:
         # print("="*20)
         l1_losses.append(l1_loss)
     
-    print("==== Final L1 Loss ====")
+    # print("==== Final L1 Loss ====")
     l1_losses = np.array(l1_losses)
-    print(f"L1 Loss shape: {l1_losses.shape}")
+    # print(f"L1 Loss shape: {l1_losses.shape}")
     np.save("hfm_pick_n_squat_l1_loss.npy", l1_losses)
     # print(f"Mean L1 Loss: {np.mean(l1_losses)}")
     # print(f"Std L1 Loss: {np.std(l1_losses)}"
@@ -249,6 +208,8 @@ def main(args: Args) -> None:
 def plot_error(l1_losses=None):
     import numpy as np
     import matplotlib.pyplot as plt
+
+    _plot_dir = pathlib.Path(__file__).parent
 
     if l1_losses is None:
         l1_losses = np.load("hfm_pick_n_squat_l1_loss copy.npy")
@@ -273,8 +234,10 @@ def plot_error(l1_losses=None):
         plt.legend()
 
         # plt.show()
-        plt.savefig("l1_loss_plot_rpy.png", dpi=300, bbox_inches='tight')
+        _save_path = _plot_dir / "l1_loss_plot_rpy.png"
+        plt.savefig(_save_path, dpi=300, bbox_inches='tight')
         plt.close()
+        print(f"Saved figure: {_save_path}")
 
     if True:
         errors_height = l1_losses[:, 0, 31]
@@ -286,11 +249,12 @@ def plot_error(l1_losses=None):
         plt.ylabel("L1 Loss")
         plt.title("L1 Loss for height (Meter)")
         plt.grid(True)
-        plt.legend()
 
         # plt.show()
-        plt.savefig("l1_loss_plot_height.png", dpi=300, bbox_inches='tight')
+        _save_path = _plot_dir / "l1_loss_plot_height.png"
+        plt.savefig(_save_path, dpi=300, bbox_inches='tight')
         plt.close()
+        print(f"Saved figure: {_save_path}")
 
     if True:
         errors_vx = l1_losses[:, 0, 32]
@@ -302,12 +266,12 @@ def plot_error(l1_losses=None):
         plt.ylabel("L1 Loss")
         plt.title("L1 Loss for Vx (m/s)")
         plt.grid(True)
-        plt.legend()
 
         # plt.show()
-        plt.savefig("l1_loss_plot_vx.png", dpi=300, bbox_inches='tight')
+        _save_path = _plot_dir / "l1_loss_plot_vx.png"
+        plt.savefig(_save_path, dpi=300, bbox_inches='tight')
         plt.close()
-
+        print(f"Saved figure: {_save_path}")
 
     if True:
         errors_vy = l1_losses[:, 0, 33]
@@ -319,11 +283,12 @@ def plot_error(l1_losses=None):
         plt.ylabel("L1 Loss")
         plt.title("L1 Loss for Vy (m/s)")
         plt.grid(True)
-        plt.legend()
 
         # plt.show()
-        plt.savefig("l1_loss_plot_vy.png", dpi=300, bbox_inches='tight')
+        _save_path = _plot_dir / "l1_loss_plot_vy.png"
+        plt.savefig(_save_path, dpi=300, bbox_inches='tight')
         plt.close()
+        print(f"Saved figure: {_save_path}")
 
     if True:
         errors_vyaw = l1_losses[:, 0, 34]
@@ -335,11 +300,12 @@ def plot_error(l1_losses=None):
         plt.ylabel("L1 Loss")
         plt.title("L1 Loss for Vyaw (m/s)")
         plt.grid(True)
-        plt.legend()
 
         # plt.show()
-        plt.savefig("l1_loss_plot_vyaw.png", dpi=300, bbox_inches='tight')
+        _save_path = _plot_dir / "l1_loss_plot_vyaw.png"
+        plt.savefig(_save_path, dpi=300, bbox_inches='tight')
         plt.close()
+        print(f"Saved figure: {_save_path}")
 
     if True:
         errors_target_yaw = np.rad2deg(l1_losses[:, 0, 35])
@@ -351,12 +317,12 @@ def plot_error(l1_losses=None):
         plt.ylabel("L1 Loss")
         plt.title("L1 Loss for Target Yaw (Degree)")
         plt.grid(True)
-        plt.legend()
 
         # plt.show()
-        plt.savefig("l1_loss_plot_target_yaw.png", dpi=300, bbox_inches='tight')
+        _save_path = _plot_dir / "l1_loss_plot_target_yaw.png"
+        plt.savefig(_save_path, dpi=300, bbox_inches='tight')
         plt.close()
-
+        print(f"Saved figure: {_save_path}")
 
     if True:
         errors_arm = np.rad2deg(l1_losses[:, 0, 14:28])
@@ -374,8 +340,10 @@ def plot_error(l1_losses=None):
         plt.legend(ncol=2, fontsize=8)
 
         # plt.show()
-        plt.savefig("l1_loss_plot_arm.png", dpi=300, bbox_inches='tight')
+        _save_path = _plot_dir / "l1_loss_plot_arm.png"
+        plt.savefig(_save_path, dpi=300, bbox_inches='tight')
         plt.close()
+        print(f"Saved figure: {_save_path}")
 
     if True:
         errors_hand = np.rad2deg(l1_losses[:, 0, 0:14])
@@ -393,8 +361,10 @@ def plot_error(l1_losses=None):
         plt.legend(ncol=2, fontsize=8)
 
         # plt.show()
-        plt.savefig("l1_loss_plot_hand.png", dpi=300, bbox_inches='tight')
+        _save_path = _plot_dir / "l1_loss_plot_hand.png"
+        plt.savefig(_save_path, dpi=300, bbox_inches='tight')
         plt.close()
+        print(f"Saved figure: {_save_path}")
 
 
 if __name__ == "__main__":

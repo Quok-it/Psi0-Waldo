@@ -43,11 +43,11 @@ At the top, the $\Psi_0$ model consists of two end-to-end trained components: a 
   - [GR00T N1.6](#groot-n16)
   - [OpenPi π0.5](#openpi-05)
   - [InternVLA-M1](#internvla-m1)
-  - [H-RDT](#-)
-  - [EgoVLA](#-)
-  - [Diffusion Policy](#-)
-  - [ACT](#-) 
-- [Simulation](#simulation)
+  - [H-RDT](#h-rdt)
+  - [EgoVLA](#egovla)
+  - [Diffusion Policy](#diffusion-policy)
+  - [ACT](#act) 
+- [Simulation 🚀🚀🚀](#simulation)
   - [Install SIMPLE](#install-simple)
   - [Data Generation](#data-generation)
   - [Fine-Tuning](#training-sim)
@@ -97,10 +97,8 @@ python -c "from psi.data.lerobot.compat import LEROBOT_LAYOUT; print(LEROBOT_LAY
 ### Data Collection
 > 📂 We open-sourced all the 9 real-world tasks. You can directly download the data and jump to the [Fine-Tuning](#training-real).
 
-> 🔥 We first release our internal test data collection pipeline which uses Apple Vision Pro to teleoperate Unitree G1 humanoid Robot with two Dex3-1 hands.
-
 See the detailed teleoperation guide here:  
-[Real-World Teleoperation Guide](real/README.md)
+[Real-World Deployment Guide](real/README.md#real-world-deployment)
 
 
 #### Pre-Processing: Convert Raw Data to LeRobot Format
@@ -282,36 +280,63 @@ cd src/InternVLA-M1
 ./scripts/deploy_internvla.sh
 ```
 
+### H-RDT
+
+See quick-start doc for [baseline/hrdt](examples/quick_start/hrdt.md).
+
+### EgoVLA
+
+See quick-start doc for [baseline/egovla](examples/quick_start/egovla.md).
+
+### Diffusion Policy
+See dedicated doc here [baseline/dp](baselines/dp/README.md)
+
+### ACT
+See dedicated doc here [baseline/act](baselines/act/README.md)
+
 ## Simulation
 
-We use [SIMPLE]() to benchmark $\Psi_0$ and all the baselines.
+We use [SIMPLE](https://github.com/physical-superintelligence-lab/SIMPLE) to benchmark $\Psi_0$ and all the baselines.
 
 > 📢 SIMPLE is an easy-to-use humanoid benchmarking simulator built on the MuJoCo physics engine and Isaac Sim rendering.
 
 ### Install SIMPLE
-[Coming soon]
+
+Currently, there are two options to integrate SIMPLE and Psi-0.
+
+#### [Option 1] Install stand-alone SIMPLE (Best for collecting data through teleoperation)
+
+> We recommend to install [SIMPLE](https://github.com/physical-superintelligence-lab/SIMPLE) on stand alone desktop with a NVIDIA GPU (3090/4090/5090). 
+
+Please refer to the SIMPLE repo [here](https://github.com/physical-superintelligence-lab/SIMPLE)
+
+#### [Option 2] Install SIMPLE as third-party dependency (Best for evaluting Psi-0 and all baselines)
+
+Please refer the more details steps [here](examples/quick_start/psi.md).
 
 ### Data Generation
-> 📂 We also provide 5 pre-collected whole-body humanoid loco-manipulation tasks at [Huggingface psi-data](https://huggingface.co/datasets/USC-PSI-Lab/psi-data/tree/main/real). If you want to use the existing simulation data, jump to the [Fine-Tuning](#training-sim)
+> 📂 We also provide 6 pre-collected whole-body humanoid loco-manipulation tasks at [Huggingface psi-data](https://huggingface.co/datasets/USC-PSI-Lab/psi-data/tree/main/simple). If you want to use the existing simulation data, jump to the [Fine-Tuning](#training-sim)
 
 #### Motion-Planning Based Data Generation
-[Coming soon]
+Please refert to the SIMPLE docs.
 
 #### Teleoperation in Simulator
-[Coming soon]
+Please refert to the SIMPLE docs.
 
 <a id="training-sim"></a>
 ### Fine-Tuning
+
+> 👉 You can skip fine-tuning and download our released [checkpoints for SIMPLE](https://huggingface.co/USC-PSI-Lab/psi-model/tree/main/psi0/simple-checkpoints).
 
 Download [SIMPLE task data](https://huggingface.co/datasets/USC-PSI-Lab/psi-data/tree/main/simple) and extract it:
 
 > 💡 Dont forget `source .env` first before following below commands.
 
 ```
-export task=G1WholebodyBendPick-v0
+export task=G1WholebodyXMovePickTeleop-v0
 
 hf download USC-PSI-Lab/psi-data \
-  simple/$task$.zip \
+  simple/$task.zip \
   --local-dir=$PSI_HOME/data \
   --repo-type=dataset
 
@@ -345,28 +370,72 @@ uv run --active --group psi --group serve serve_psi0 \
   --rtc
 ```
 
-
 Run open-loop evaluation (offline)
 
 [examples/simple/openloop_eval.ipynb](examples/simple/openloop_eval.ipynb)
 
-#### Run the Evaluation Client
+#### Run the Evaluation in SIMPLE
+
+This `quick-start` guide assumes running SIMPLE on a Stand-alone workstation with NVIDIA GPU.
+
+> We recommend serving the VLA models on a remote server other than locally as IsaacSim is also resource demanding. 
+
 > If the server is started on a remote server, run ssh port forward. eg., `ssh -L 22086:localhost:22086 songlin@nebula100`.
 
 > Once port forward is done, open a new terminal to test if server is up `curl -i http://localhost:22085/health`
 
-Launch the eval client through docker
+Download eval tasks from [USC-PSI-Lab/psi-data](https://huggingface.co/datasets/USC-PSI-Lab/psi-data/tree/main/simple-eval).
+
+
 ```
-GPUs=1 docker compose run eval $task psi0 \
-    --host=localhost \
-    --port=22085  \
-    --sim-mode=mujoco_isaac \
-    --headless \
-    --max-episode-steps=360 \
-    --num-episodes=10 \
-    --data-format=lerobot \
-    --data-dir=data/$task
+cd /path/to/SIMPLE
+export task=G1WholebodyXMovePickTeleop-v0
 ```
+
+Download eval data and extract it:
+```
+hf download USC-PSI-Lab/psi-data \
+	simple-eval/$task.zip \
+	--local-dir=data/evals \
+	--repo-type=dataset
+
+unzip data/evals/simple-eval/$task.zip -d data/evals/simple-eval
+```
+
+Now start SIMPLE eval in the SIMPLE environment:
+
+> We provide three domain randomization levels: `level-0`, `level-1`, `level-2` for each task
+
+```
+export dr=level-0
+```
+We use two different entrypoints for evaluating different tasks:
+
+set entrypoint and agent to `eval_decoupled_wbc.py` and `pi05_decoupled_wbc` if the evaluating task ends with `Teleop`, which means the task data is collected using teleoperation:
+```
+export entry=eval_decoupled_wbc.py
+export agent=pi05_decoupled_wbc
+```
+
+and set entrypoint and agent to `eval.py` and `pi05` if the evaluating task ends with `MP`, which means the task data is generated using CuRobo Motion planning:
+```
+export entry=eval.py
+export entry=pi05
+```
+
+```
+python src/simple/cli/$entry \
+	simple/$task \
+	$agent \
+	$dr \
+	--host=localhost \
+	--port=9000 \
+	--sim-mode=mujoco_isaac \
+	--no-headless \
+	--data-format=lerobot \
+	--data-dir=data/evals/simple-eval/$task/$dr
+```
+
 The policy rollout videos will be found in folder `third_party/SIMPLE/data/evals/psi0`.
 
 > The evaluation for a single episode could take up to 6~10 minutes because SIMPLE use a synchronous rendering API in IsaacSim. See here for [more explanation](#).

@@ -11,6 +11,7 @@ import websockets.frames
 
 logger = logging.getLogger(__name__)
 
+INIT_BASE_HEIGHT = 0.74
 
 class WebsocketPolicyServer:
     """Serves a policy using the websocket protocol. See websocket_client_policy.py for a client implementation.
@@ -31,7 +32,7 @@ class WebsocketPolicyServer:
         self._metadata = metadata or {}
         logging.getLogger("websockets.server").setLevel(logging.INFO)
 
-        self.torso_rpyh = np.array([0, 0, 0, 0.75], dtype=np.float32)
+        self.torso_rpyh = np.array([0, 0, 0, INIT_BASE_HEIGHT], dtype=np.float32)
         self.serve_time = time.monotonic()
 
     def serve_forever(self) -> None:
@@ -63,7 +64,7 @@ class WebsocketPolicyServer:
                 infer_time = time.monotonic()
                 print(f"Received instruction: {obs['prompt']}")
                 if infer_time - self.serve_time > 30 or obs.get("reset", False): # if idle more than 30s or reset flag is set, reset torso_rpyh
-                    self.torso_rpyh = np.array([0, 0, 0, 0.75], dtype=np.float32)
+                    self.torso_rpyh = np.array([0, 0, 0, INIT_BASE_HEIGHT], dtype=np.float32)
                     print("Reset torso_rpyh to default.") 
                 print(f"Torso rpyh: {self.torso_rpyh}")
 

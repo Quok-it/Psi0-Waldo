@@ -1,9 +1,11 @@
 import torch
+from pathlib import Path
+
 from transformers import AutoTokenizer, T5EncoderModel
 
 
 class T5Embedder:
-    available_models = ["/data/lingxuan/weights/t5-v1_1-xxl", "/hfm/t5-v1_1-xxl"]
+    available_models = ["/data/lingxuan/weights/t5-v1_1-xxl"]
 
     def __init__(
         self,
@@ -70,7 +72,12 @@ class T5Embedder:
         self.use_text_preprocessing = use_text_preprocessing
         self.hf_token = hf_token
 
-        assert from_pretrained in self.available_models
+        if from_pretrained not in self.available_models:
+            if from_pretrained is None or not Path(from_pretrained).exists():
+                raise ValueError(
+                    f"Unknown T5 path: {from_pretrained}. "
+                    f"Set to one of: {self.available_models} or a valid local path."
+                )
         self.tokenizer = AutoTokenizer.from_pretrained(
             from_pretrained,
             model_max_length=model_max_length,

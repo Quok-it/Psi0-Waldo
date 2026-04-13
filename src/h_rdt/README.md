@@ -12,7 +12,7 @@ H-RDT (**H**uman to **R**obotics **D**iffusion **T**ransformer) is a novel appro
 
 1. **Create conda environment:**
    ```bash
-   conda create -n hrdt python=3.10
+   conda create -n hrdt python=3.11
    conda activate hrdt
    ```
 
@@ -173,8 +173,9 @@ elif self.dataset_name == "your_robot_name":
 Join our WeChat group to discuss H-RDT related technical issues:
 
 <div align="center">
-<img src="assets/wechat_group_qr.jpg" width="200" alt="WeChat Group QR Code">
+<img src="assets/wechat_group_qr.jpg" width="200" alt="WeChat Group QR Code"> 
 <p><em>WeChat Group QR Code</em></p>
+   
 </div>
 
 ### Personal WeChat

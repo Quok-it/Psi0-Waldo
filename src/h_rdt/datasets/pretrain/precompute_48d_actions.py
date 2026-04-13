@@ -14,6 +14,7 @@ from multiprocessing import Process, Queue
 import traceback
 import time
 
+
 def construct_48d_action_from_hdf5(transforms_group, frame_idx):
     """
     Construct 48-dimensional hand action representation from HDF5 file
@@ -93,12 +94,13 @@ def process_single_file(hdf5_path, force_overwrite=False):
                 
             transforms_group = f['transforms']
             total_frames = list(transforms_group.values())[0].shape[0]
-            actions_48d = []
             
+            # Construct 48-dimensional action data for all frames
+            actions_48d = []
             for frame_idx in range(total_frames):
                 try:
-                    action48d_vector = construct_48d_action_from_hdf5(transforms_group, frame_idx)
-                    actions_48d.append(action48d_vector)
+                    action_vector = construct_48d_action_from_hdf5(transforms_group, frame_idx)
+                    actions_48d.append(action_vector)
                 except Exception as e:
                     print(f"Error processing frame {frame_idx} in {hdf5_path}: {e}")
             
@@ -111,13 +113,7 @@ def process_single_file(hdf5_path, force_overwrite=False):
         with h5py.File(hdf5_path, 'a') as f:
             # Delete old actions_48d data (if exists)
             if 'actions_48d' in f:
-                try:
-                    del f['actions_48d']
-                except KeyError as e:
-                    # File is corrupted - cannot delete or access the dataset
-                    # Need to use h5repack to fix: h5repack input.hdf5 output.hdf5
-                    print(f"ERROR: File {hdf5_path} is corrupted (EOA error). Run: h5repack {hdf5_path} {hdf5_path}.fixed && mv {hdf5_path}.fixed {hdf5_path}")
-                    return False, f"Corrupted file (EOA error): {e}", 0
+                del f['actions_48d']
             
             # Create new actions_48d dataset
             f.create_dataset(
@@ -137,8 +133,6 @@ def process_single_file(hdf5_path, force_overwrite=False):
         return True, "Success", total_frames
         
     except Exception as e:
-        traceback.print_exc()
-        exit(1)
         return False, str(e), 0
 
 
@@ -182,7 +176,6 @@ def progress_monitor(total_files, progress_queue, num_processes):
     error_files = 0
     finished_processes = 0
     total_frames = 0
-    corrupted_files = []  # Collect corrupted file paths
     
     pbar = tqdm(total=total_files, desc="Processing files")
     
@@ -196,9 +189,6 @@ def progress_monitor(total_files, progress_queue, num_processes):
                 pbar.update(1)
             elif msg[0] == 'error':
                 error_files += 1
-                file_path, error_msg = msg[2], msg[3]
-                if 'EOA error' in error_msg or 'Corrupted' in error_msg:
-                    corrupted_files.append(str(file_path))
                 pbar.update(1)
             elif msg[0] == 'done':
                 finished_processes += 1
@@ -214,16 +204,6 @@ def progress_monitor(total_files, progress_queue, num_processes):
             continue
     
     pbar.close()
-    
-    # Save corrupted files list
-    if corrupted_files:
-        corrupted_list_path = Path("corrupted_hdf5_files.txt")
-        with open(corrupted_list_path, 'w') as f:
-            for fp in corrupted_files:
-                f.write(f"{fp}\n")
-        print(f"\n⚠️  Found {len(corrupted_files)} corrupted files. List saved to: {corrupted_list_path.absolute()}")
-        print("To fix, run: while read f; do h5repack \"$f\" \"${f}.fixed\" && mv \"${f}.fixed\" \"$f\"; done < corrupted_hdf5_files.txt")
-    
     return processed_files, error_files, total_frames
 
 
@@ -259,7 +239,6 @@ def main():
                        help='Test mode, only process a few files')
     
     args = parser.parse_args()
-    # args.force_overwrite = True
     
     print("🚀 Starting to pre-compute 48-dimensional action data...")
     print(f"Data root directory: {args.data_root}")
@@ -272,7 +251,7 @@ def main():
     all_files = collect_all_hdf5_files(args.data_root)
     
     if args.test_mode:
-        # Test mode, only process first 1 files
+        # Test mode, only process first 10 files
         all_files = all_files[:10]
         print(f"🧪 Test mode: processing first {len(all_files)} files")
     
@@ -334,7 +313,6 @@ def main():
     print("\n🔍 Verifying processing results...")
     sample_files = all_files[:5]  # Verify first 5 files
     for file_path in sample_files:
-        # print(f"file_path: {file_path}")
         try:
             with h5py.File(file_path, 'r') as f:
                 if 'actions_48d' in f:

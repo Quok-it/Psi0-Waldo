@@ -58,13 +58,16 @@ hf download USC-PSI-Lab/psi-model \
 
 Download the task data, for example
 ```
-export task=G1WholebodyBendPick-v1
+export task=G1WholebodyXMovePick-v0
 ```
 ```
-hf download songlinwei/hfm simple/$task.zip --local-dir=$PSI_HOME/data --repo-type=dataset
+hf download USC-PSI-Lab/psi-data simple/$task.zip --local-dir=$PSI_HOME/data --repo-type=dataset
 unzip "$PSI_HOME/data/simple/$task.zip" -d "$PSI_HOME/data/simple"
 ```
 Create a new `TrainConfig` for the task in `src/openpi/training/config.py`:
+
+> Skip this step if you are finetuning the same SIMPLE/real tasks provided by $Psi_0.
+
 ```
 vim src/openpi/training/config.py
 ```
@@ -82,7 +85,7 @@ for example
             max_token_len=250,
         ),
         data=LeRobotHFMDataConfig(
-            repo_id=f"{os.environ['PSI_HOME']}/data/simple/G1WholebodyBendPick-v1",
+            repo_id=f"{os.environ['PSI_HOME']}/data/simple/<-- replace with $task -->",
             base_config=DataConfig(prompt_from_task=True),
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
@@ -95,45 +98,37 @@ for example
             decay_lr=1e-8,
         ),
         pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/pi05_droid",
-        policy_metadata={"dataset": "G1WholebodyBendPick-v1"},
+        policy_metadata={"dataset": "<-- replace with $task -->"},
         checkpoint_base_dir=f".runs/openpi-05"
     ),
 	# ...
 ```
 
-Compute stats for the task using official script (which is slow)
+Compute stats for the task using official script (which is slow, see below for another option)
 ```
-python src/openpi/compute_norm_stats.py --config-name simple_bend_pick_v1
+python src/openpi/compute_norm_stats.py --config-name $task
 ```
 
 > Or you can rewrite our precomputed stats to `openpi` format:
-> `python src/openpi/rewrite_norm_stats.py --task_path=$PSI_HOME/data/simple/G1WholebodyBendPick-v1`.
+> `python src/openpi/rewrite_norm_stats.py --task_path=$PSI_HOME/data/simple/$task`.
 >  The calculations are slightly different but it's ok.
 
 ### Fine-Tune $\pi_{0.5}$
 Launch the training script
 ```
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 torchrun --standalone --nnodes=1 --nproc_per_node=8 src/openpi/train_pytorch.py \
-	simple_bend_pick_v1 \
-	--exp_name=simple_bend_pick_v1 \
-	--save_interval=10000 \
-	--checkpoint_base_dir=.runs/openpi-05
+bash baselines/pi05/train_pi05.sh $task
 ```
 
 
 ### Eval $\pi_{0.5}$
 ```
 export port=9000
-bash scripts/deploy/serve_pi05.sh $task $step $port
+export step=40000
+bash baselines/pi05/serve_pi05.sh $task $step $port
 ```
-Open-loop evaluation
+Open-loop evaluation (on train data)
 ```
-export PYTORCH_WEIGHT_PATH=/hfm/songlin/we_learn/.cache/checkpoints/pi05_droid
-export DATA_HOME=/hfm/songlin/we_learn/.data/real_teleop_g1/lerobot
-export task=Pick_bottle_and_turn_and_pour_into_cup
-export port=9000
-
-python scripts/train/openpi/eval_openloop.py --port=$port --task=$task
+python baselines/pi05/eval_openloop.py --port=$port --task=$task
 ```
 
 
@@ -231,26 +226,79 @@ hf upload USC-PSI-Lab/psi-model \
 6. Serve
 Download:
 ```
-export task=Remove_the_cap_turn_on_the_faucet_and_fill_the_bottle_with_water
 export step=40000
 python scripts/data/download.py \
-	--repo-id=USC-PSI-Lab/psi-data-models \
+	--repo-id=USC-PSI-Lab/psi-models \
 	--remote-dir=benchmarks/openpi-05/$task/$step \
 	--repo-type=model \
 	--local-dir=.runs/openpi-05/$task/$task/$step
 ```
+
 and Serve:
 ```
 export port=9000
-bash scripts/deploy/serve_pi05.sh $task $step $port
+bash baselines/pi05/serve_pi05.sh $task $step $port
 ```
+
 Open-loop evaluation
 ```
-export PYTORCH_WEIGHT_PATH=/hfm/songlin/we_learn/.cache/checkpoints/pi05_droid
-export DATA_HOME=/hfm/songlin/we_learn/.data/real_teleop_g1/lerobot
-export task=Pick_bottle_and_turn_and_pour_into_cup
-export port=9000
-
-python scripts/train/openpi/eval_openloop.py --port=$port --task=$task
+python baselines/pi05/eval_openloop.py --port=$port --task=$task
 ```
 </details>
+
+
+### Eval in SIMPLE
+
+TODO: migrate following instructions using SIMPLE third_party
+
+```
+cd <project root of SIMPLE>
+source .venv/bin/activate
+```
+
+```
+export task=G1WholebodyXMovePick-v0
+```
+
+Download eval data and extract it:
+```
+hf download USC-PSI-Lab/psi-data \
+	simple-eval/$task.zip \
+	--local-dir=data/evals \
+	--repo-type=dataset
+
+unzip data/evals/simple-eval/$task.zip -d data/evals/simple-eval
+```
+Now start SIMPLE eval in the SIMPLE environment:
+
+> We provide three domain randomization levels: `level-0`, `level-1`, `level-2` for each task
+
+```
+export dr=level-0
+```
+We use two different entrypoints for evaluating different tasks:
+
+set entrypoint and agent to `eval_decoupled_wbc.py` and `pi05_decoupled_wbc` if the evaluating task ends with `Teleop`, which means the task data is collected using teleoperation:
+```
+export entry=eval_decoupled_wbc.py
+export agent=pi05_decoupled_wbc
+```
+
+and set entrypoint and agent to `eval.py` and `pi05` if the evaluating task ends with `MP`, which means the task data is generated using CuRobo Motion planning:
+```
+export entry=eval.py
+export entry=pi05
+```
+
+```
+python src/simple/cli/$entry \
+	simple/$task \
+	$agent \
+	$dr \
+	--host=localhost \
+	--port=9000 \
+	--sim-mode=mujoco_isaac \
+	--no-headless \
+	--data-format=lerobot \
+	--data-dir=data/evals/simple-eval/$task/$dr
+```

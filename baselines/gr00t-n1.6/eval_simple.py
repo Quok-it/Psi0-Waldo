@@ -94,7 +94,6 @@ def _build_eval_config(values: dict[str, Any]) -> EvalConfig:
         port=int(values["port"]),
         data_format=values.get("data_format", "lerobot"),
         sim_mode=values.get("sim_mode", "mujoco_isaac"),
-        camera_profile=values.get("camera_profile"),
         headless=bool(values.get("headless", True)),
         eval_dir=values.get("eval_dir", "data/evals"),
         max_episode_steps=int(values.get("max_episode_steps", 360)),

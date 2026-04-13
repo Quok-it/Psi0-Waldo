@@ -18,12 +18,12 @@ sys.path.append(PROJECT_ROOT)
 from models.encoder.t5_encoder import T5Embedder
 
 # Get paths from environment variables or use defaults
-MODEL_PATH = os.environ.get('T5_MODEL_PATH', "/hfm/t5-v1_1-xxl")
+MODEL_PATH = os.environ.get('T5_MODEL_PATH', "/data/lingxuan/weights/t5-v1_1-xxl")
 CONFIG_PATH = os.environ.get('HRDT_CONFIG_PATH', os.path.join(PROJECT_ROOT, "configs/hrdt_pretrain.yaml"))
-TARGET_DIR = os.environ.get('EGODEX_DATA_ROOT', "/fpv/egodex")
+TARGET_DIR = os.environ.get('EGODEX_DATA_ROOT', "/share/hongzhe/datasets/egodex/")
 
 # Multi-process configuration (can be overridden by environment variables)
-NUM_GPUS = int(os.environ.get('NUM_GPUS', 1))  # Total number of GPUs
+NUM_GPUS = int(os.environ.get('NUM_GPUS', 8))  # Total number of GPUs
 PROCESSES_PER_GPU = int(os.environ.get('PROCESSES_PER_GPU', 4))  # Processes per GPU
 TOTAL_PROCESSES = NUM_GPUS * PROCESSES_PER_GPU  # Total processes
 
@@ -102,8 +102,6 @@ def worker_process(process_id, gpu_id, file_list, progress_queue):
                 task_name = file_info['task_name']
                 dataset_name = file_info['dataset_name']
                 file_index = file_info['file_index']
-
-                # print("L106:", pt_path);exit(0)
                 
                 # Check again if file already exists (prevent duplicate processing by other processes)
                 if os.path.exists(pt_path):

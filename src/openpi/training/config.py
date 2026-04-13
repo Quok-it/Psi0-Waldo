@@ -1230,7 +1230,7 @@ _CONFIGS = [
         checkpoint_base_dir=f".runs/openpi-05"
     ),
     TrainConfig(
-        name="simple_bend_pick_v1",
+        name="G1WholebodyXMovePick-v0",
         project_name="psi",
         num_workers=8,
         model=pi0_config.Pi0Config(
@@ -1240,7 +1240,7 @@ _CONFIGS = [
             max_token_len=250,
         ),
         data=LeRobotHFMDataConfig(
-            repo_id=f"{os.environ['PSI_HOME']}/data/simple/G1WholebodyBendPick-v1",
+            repo_id=f"{os.environ['PSI_HOME']}/data/simple/G1WholebodyXMovePick-v0",
             base_config=DataConfig(prompt_from_task=True),
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
@@ -1253,10 +1253,145 @@ _CONFIGS = [
             decay_lr=1e-8,
         ),
         pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/openpi/pi05_droid",
-        policy_metadata={"dataset": "G1WholebodyBendPick-v1"},
+        policy_metadata={"dataset": "G1WholebodyXMovePick-v0"},
         checkpoint_base_dir=f".runs/openpi-05"
     ),
-
+    TrainConfig(
+        name="G1WholebodyXMoveBendPickTeleop-v0",
+        project_name="psi",
+        num_workers=8,
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_dim=36,
+            action_horizon=30,
+            max_token_len=250,
+        ),
+        data=LeRobotHFMDataConfig(
+            repo_id=f"{os.environ['PSI_HOME']}/data/simple/G1WholebodyXMoveBendPickTeleop-v0",
+            base_config=DataConfig(prompt_from_task=True),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
+        num_train_steps=40_000,
+        batch_size=128,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=1_000,
+            peak_lr=1e-4,
+            decay_steps=40_000,
+            decay_lr=1e-8,
+        ),
+        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/openpi/pi05_droid",
+        policy_metadata={"dataset": "G1WholebodyXMoveBendPickTeleop-v0"},
+        checkpoint_base_dir=f".runs/openpi-05"
+    ),
+    TrainConfig(
+        name="G1WholebodyBendPickMP-v0",
+        project_name="psi",
+        num_workers=8,
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_dim=36,
+            action_horizon=30,
+            max_token_len=250,
+        ),
+        data=LeRobotHFMDataConfig(
+            repo_id=f"{os.environ['PSI_HOME']}/data/simple/G1WholebodyBendPickMP-v0",
+            base_config=DataConfig(prompt_from_task=True),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
+        num_train_steps=40_000,
+        batch_size=128,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=1_000,
+            peak_lr=1e-4,
+            decay_steps=40_000,
+            decay_lr=1e-8,
+        ),
+        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/openpi/pi05_droid",
+        policy_metadata={"dataset": "G1WholebodyBendPickMP-v0"},
+        checkpoint_base_dir=f".runs/openpi-05"
+    ),
+    TrainConfig(
+        name="G1WholebodyHandoverTeleop-v0",
+        project_name="psi",
+        num_workers=8,
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_dim=36,
+            action_horizon=30,
+            max_token_len=250,
+        ),
+        data=LeRobotHFMDataConfig(
+            repo_id=f"{os.environ['PSI_HOME']}/data/simple/G1WholebodyHandoverTeleop-v0",
+            base_config=DataConfig(prompt_from_task=True),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
+        num_train_steps=40_000,
+        batch_size=128,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=1_000,
+            peak_lr=1e-4,
+            decay_steps=40_000,
+            decay_lr=1e-8,
+        ),
+        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/openpi/pi05_droid",
+        policy_metadata={"dataset": "G1WholebodyHandoverTeleop-v0"},
+        checkpoint_base_dir=f".runs/openpi-05"
+    ),
+    TrainConfig(
+        name="G1WholebodyLocomotionPickBetweenTablesTeleop-v0",
+        project_name="psi",
+        num_workers=8,
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_dim=36,
+            action_horizon=30,
+            max_token_len=250,
+        ),
+        data=LeRobotHFMDataConfig(
+            repo_id=f"{os.environ['PSI_HOME']}/data/simple/G1WholebodyLocomotionPickBetweenTablesTeleop-v0",
+            base_config=DataConfig(prompt_from_task=True),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
+        num_train_steps=40_000,
+        batch_size=128,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=1_000,
+            peak_lr=1e-4,
+            decay_steps=40_000,
+            decay_lr=1e-8,
+        ),
+        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/openpi/pi05_droid",
+        policy_metadata={"dataset": "G1WholebodyLocomotionPickBetweenTablesTeleop-v0"},
+        checkpoint_base_dir=f".runs/openpi-05"
+    ),
+    TrainConfig(
+        name="G1WholebodyTabletopGraspMP-v0",
+        project_name="psi",
+        num_workers=8,
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_dim=36,
+            action_horizon=30,
+            max_token_len=250,
+        ),
+        data=LeRobotHFMDataConfig(
+            repo_id=f"{os.environ['PSI_HOME']}/data/simple/G1WholebodyTabletopGraspMP-v0",
+            base_config=DataConfig(prompt_from_task=True),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
+        num_train_steps=40_000,
+        batch_size=128,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=1_000,
+            peak_lr=1e-4,
+            decay_steps=40_000,
+            decay_lr=1e-8,
+        ),
+        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/openpi/pi05_droid",
+        policy_metadata={"dataset": "G1WholebodyTabletopGraspMP-v0"},
+        checkpoint_base_dir=f".runs/openpi-05"
+    ),
+    
     #
     # ALOHA Sim configs. This config is used to demonstrate how to train on a simple simulated environment.
     #

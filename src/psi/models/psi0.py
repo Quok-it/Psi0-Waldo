@@ -946,7 +946,7 @@ class VLATransformerBlock(nn.Module):
             ) """
             norm_obs_hidden_states, gate_msa_obs, shift_mlp_obs, scale_mlp_obs, gate_mlp_obs = self.norm1_obs(obs_hidden_states, emb=temb[:,-1] if len(temb.shape) > 2 else temb)
 
-        act_attn_output, obs_attn_output = self.attn( ## indirectly calls JointAttnProcessor2_0.__call__, VLAAttnProcessor.__call__
+        act_attn_output, obs_attn_output = self.attn( ## indirectly calls JointAttnProcessor2_0.__call__
             # hidden_states=None,
             # lang_hidden_states=norm_lang_hidden_states,
             hidden_states=norm_action_hidden_states,

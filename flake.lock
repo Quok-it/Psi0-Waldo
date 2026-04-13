@@ -18,8 +18,25 @@
     },
     "root": {
       "inputs": {
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "simple": "simple"
       }
+    },
+    "simple": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "path": "./third_party/SIMPLE",
+        "type": "path"
+      },
+      "original": {
+        "path": "./third_party/SIMPLE",
+        "type": "path"
+      },
+      "parent": []
     }
   },
   "root": "root",

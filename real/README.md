@@ -37,7 +37,7 @@ pip install -e .
 ```
 
 
-# Ψ₀ Real-World Deployment
+# Real-World Deployment
 
 ## Image Server (Robot only)
 

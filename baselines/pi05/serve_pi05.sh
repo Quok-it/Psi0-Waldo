@@ -26,4 +26,4 @@ python src/openpi/deploy/serve_policy.py \
     --port=$port \
     policy:checkpoint \
     --policy.config=$task \
-    --policy.dir=.runs/openpi-05/$task/freeze-vlm/$ckpt_step
+    --policy.dir=.runs/openpi-05/$task/$task/$ckpt_step
