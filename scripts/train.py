@@ -81,16 +81,18 @@ def _initialize_accelerator(trainer: Trainer) -> Accelerator:
         if trainer.cfg.auto_tag_run:
             _auto_tag_run(trainer.run_name)
 
-        if trainer.cfg.log.report_to == "wandb":
+        report_to = trainer.cfg.log.report_to
+
+        if report_to == "wandb":
             tracker_config = (
                 trainer.cfg.model_dump()
             )  # cfg.model_dump() # dict(vars(cfg.task))
-            
+
             # Add environment variables to tracker config for wandb logging
             if "_ENV_INFO_JSON" in os.environ:
                 env_info = json.loads(os.environ["_ENV_INFO_JSON"])
                 tracker_config["environment_variables"] = env_info
-            
+
             wandb_config = dict(
                 trainer.cfg.wandb
             )  # cfg.wandb.model_dump() #vars(copy.deepcopy(cfg.wandb))
@@ -111,7 +113,7 @@ def _initialize_accelerator(trainer: Trainer) -> Accelerator:
                             run_id = (json.load(f).get("wandb") or {}).get("id")
                             overwatch.info(f"resume wandb with run id: {run_id}")
                         wandb_config["id"] = run_id
-                        
+
             accelerator.init_trackers(project, tracker_config, {"wandb": wandb_config})
             for tracker in accelerator.trackers:
                 if tracker.name == "wandb":
@@ -119,6 +121,16 @@ def _initialize_accelerator(trainer: Trainer) -> Accelerator:
                     trainer.cfg.wandb.name = tracker.run.name
                     trainer.cfg.wandb.entity = tracker.run.entity
                     trainer.cfg.wandb.group = tracker.run.group
+
+        elif report_to == "tensorboard":
+            tb_dir = os.path.join(trainer.project_dir, "tensorboard")
+            os.makedirs(tb_dir, exist_ok=True)
+            accelerator.init_trackers(
+                trainer.cfg.train.name,
+                config=None,
+                init_kwargs={"tensorboard": {"logging_dir": tb_dir}},
+            )
+            overwatch.info(f"TensorBoard logging to {tb_dir}")
 
         # Log the configuration
         os.makedirs(trainer.project_dir, exist_ok=True)
