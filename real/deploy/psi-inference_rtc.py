@@ -285,60 +285,16 @@ def main(server_url):
         arm_cmd = None
         hand_cmd = None
         if have_vla:
-            if action.shape[0] < 36:
+            if action.shape[0] < 26:
                 print("[CTRL] Invalid action shape:", action.shape)
             else:
-                vx = action[32]
-                vy = action[33]
-                vyaw = action[34]
-                # dyaw = action[35]
-                target_yaw = action[35]
-
-                vx = 0.6 if vx > 0.25 else 0
-                vy = 0 if abs(vy) < 0.3 else 0.5 * (1 if vy > 0 else -1)
-
-
-                rpyh   = action[28:32]
+                # Upper body only (26 dims): hands(14) + arms(14)
+                # Locomotion handled by Unitree controller
                 arm_cmd = action[14:28]
                 hand_cmd = action[:14]
 
-                master.torso_roll   = rpyh[0]
-                master.torso_pitch  = rpyh[1]
-                master.torso_yaw    = rpyh[2]
-                master.torso_height = rpyh[3]
-
-                print("torso_roll, pitch, yaw, height:", master.torso_roll, master.torso_pitch, master.torso_yaw, master.torso_height)
-
-                master.vx = vx
-                master.vy = vy
-                master.vyaw = vyaw
-                master.target_yaw = target_yaw
-
-
-                master.prev_torso_roll   = master.torso_roll
-                master.prev_torso_pitch  = master.torso_pitch
-                master.prev_torso_yaw    = master.torso_yaw
-                master.prev_torso_height = master.torso_height
-
-                master.prev_vx   = master.vx
-                master.prev_vy  = master.vy
-                master.prev_vyaw    = master.vyaw
-                master.prev_target_yaw = master.target_yaw
-
                 master.prev_arm = arm_cmd
                 master.prev_hand = hand_cmd
-
-        
-        if not have_vla:
-            master.torso_roll   = master.prev_torso_roll
-            master.torso_pitch  = master.prev_torso_pitch
-            master.torso_yaw    = master.prev_torso_yaw
-            master.torso_height = master.prev_torso_height
-
-            master.vx = master.prev_vx
-            master.vy = 0
-            master.vyaw = master.prev_vyaw
-            master.target_yaw = master.prev_target_yaw
         
 
 
