@@ -125,10 +125,10 @@ def _initialize_accelerator(trainer: Trainer) -> Accelerator:
         elif report_to == "tensorboard":
             tb_dir = os.path.join(trainer.project_dir, "tensorboard")
             os.makedirs(tb_dir, exist_ok=True)
+            accelerator.project_configuration.logging_dir = tb_dir
             accelerator.init_trackers(
                 trainer.cfg.train.name,
                 config=None,
-                init_kwargs={"tensorboard": {"logging_dir": tb_dir}},
             )
             overwatch.info(f"TensorBoard logging to {tb_dir}")
 

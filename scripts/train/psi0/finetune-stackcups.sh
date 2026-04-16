@@ -2,7 +2,7 @@
 # Finetune Psi0 on G1_Brainco_StackCups dataset.
 #
 # Adapted from finetune-real-psi0.sh for:
-#   - 1x H100 GPU (single GPU, no DDP)
+#   - 8x H100 PCIe GPUs (DDP)
 #   - 26-dim action/state (padded to 36)
 #   - observation.state key (not "states")
 #   - observation.images.head_camera (not "egocentric")
@@ -19,9 +19,10 @@
 set -euo pipefail
 
 export OMP_NUM_THREADS=32
-export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0,1,2,3,4,5,6,7}
 
 source .venv-psi/bin/activate
+set -a && source .env && set +a
 
 NPROC_PER_NODE=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
 echo "Training with $NPROC_PER_NODE GPUs"
@@ -36,7 +37,7 @@ finetune_real_psi0_config \
 --train.name=finetune \
 --train.data_parallel=ddp \
 --train.mixed_precision=bf16 \
---train.train_batch_size=64 \
+--train.train_batch_size=16 \
 --train.max_checkpoints_to_keep=5 \
 --train.gradient_accumulation_steps=1 \
 --train.learning_rate=1e-4 \
@@ -83,8 +84,10 @@ finetune_real_psi0_config \
 --model.no-use_film \
 --model.no-combined_temb \
 --model.rtc \
---model.max-delay=8
+--model.max-delay=8 \
+--train.resume_from_checkpoint=.runs/finetune/stackcups.real.flow1000.cosine.lr1.0e-04.b128.gpus8.2604151753
 "
+# --train.resume_from_checkpoint=.runs/finetune/stackcups.real.flow1000.cosine.lr1.0e-04.b16.gpus8.resumed
 
 torchrun --nproc_per_node=$NPROC_PER_NODE --master_port=29500 scripts/train.py \
     ${args}
