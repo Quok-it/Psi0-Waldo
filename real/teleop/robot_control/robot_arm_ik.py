@@ -25,14 +25,11 @@ class G1_29_ArmIK:
         self.Unit_Test = Unit_Test
         self.Visualization = Visualization
 
-        if not self.Unit_Test:
-            self.robot = pin.RobotWrapper.BuildFromURDF(
-                "../assets/g1/g1_body29_hand14.urdf", "../assets/g1/"
-            )
-        else:
-            self.robot = pin.RobotWrapper.BuildFromURDF(
-                "../../assets/g1/g1_body29_hand14.urdf", "../../assets/g1/"
-            )  # for test
+        _real_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        _assets_g1 = os.path.join(_real_dir, "assets/g1/")
+        self.robot = pin.RobotWrapper.BuildFromURDF(
+            os.path.join(_assets_g1, "g1_body29_hand14.urdf"), _assets_g1
+        )
 
         self.mixed_jointsToLockIDs = [
             "left_hip_pitch_joint",
@@ -333,14 +330,11 @@ class H1_2_ArmIK:
         self.Unit_Test = Unit_Test
         self.Visualization = Visualization
 
-        if not self.Unit_Test:
-            self.robot = pin.RobotWrapper.BuildFromURDF(
-                "../assets/h1_2/h1_2.urdf", "../assets/h1_2/"
-            )
-        else:
-            self.robot = pin.RobotWrapper.BuildFromURDF(
-                "../../assets/h1_2/h1_2.urdf", "../../assets/h1_2/"
-            )  # for test
+        _real_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        _assets_h1_2 = os.path.join(_real_dir, "assets/h1_2/")
+        self.robot = pin.RobotWrapper.BuildFromURDF(
+            os.path.join(_assets_h1_2, "h1_2.urdf"), _assets_h1_2
+        )
 
         self.mixed_jointsToLockIDs = [
             "left_hip_yaw_joint",

@@ -9,6 +9,7 @@ import requests
 import json_numpy
 
 from multiprocessing import Array, Event
+from unitree_sdk2py.comm.motion_switcher.motion_switcher_client import MotionSwitcherClient
 from teleop.master_whole_body import RobotTaskmaster
 from teleop.robot_control.compute_tau import GetTauer
 import zmq
@@ -25,17 +26,35 @@ from base64 import b64encode, b64decode
 from numpy.lib.format import dtype_to_descr, descr_to_dtype
 
 class RSCamera:
-    def __init__(self):
+    def __init__(self, host="192.168.123.164", port=55555):
         self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REQ)
-        self.socket.connect("tcp://192.168.123.164:5556")
+        self.socket = self.context.socket(zmq.SUB)
+        self.socket.setsockopt(zmq.RCVHWM, 1)
+        self.socket.setsockopt(zmq.LINGER, 0)
+        self.socket.setsockopt_string(zmq.SUBSCRIBE, "")
+        self.socket.connect(f"tcp://{host}:{port}")
+        self._latest_frame = None
+        # Wait for first frame
+        print(f"[camera] Connecting to tcp://{host}:{port}...")
+        data = self.socket.recv()
+        self._latest_frame = self._decode(data)
+        print("[camera] Got first frame.")
+
+    def _decode(self, jpg_bytes):
+        if jpg_bytes is None:
+            return None
+        arr = np.frombuffer(jpg_bytes, dtype=np.uint8)
+        return cv2.imdecode(arr, cv2.IMREAD_COLOR)
 
     def get_frame(self):
-        self.socket.send(b"get_frame")
-        rgb_bytes, _, _ = self.socket.recv_multipart()
-        rgb_array = np.frombuffer(rgb_bytes, np.uint8)
-        rgb_image = cv2.imdecode(rgb_array, cv2.IMREAD_COLOR)
-        return rgb_image
+        # Drain to latest
+        while True:
+            try:
+                data = self.socket.recv(zmq.NOBLOCK)
+                self._latest_frame = self._decode(data)
+            except zmq.Again:
+                break
+        return self._latest_frame
 
 
 def get_observation(camera, state):
@@ -65,6 +84,22 @@ kill_event = shared_data["kill_event"]
 
 robot_shm_array = Array("d", 512, lock=False)
 teleop_shm_array = Array("d", 64, lock=False)
+
+# Initialize DDS before anything else
+from unitree_sdk2py.core.channel import ChannelFactoryInitialize
+ChannelFactoryInitialize(0)
+
+# Enter debug mode to disable locomotion controller
+print("[INIT] Entering debug mode...")
+msc = MotionSwitcherClient()
+msc.SetTimeout(1.0)
+msc.Init()
+status, result = msc.CheckMode()
+while result['name']:
+    msc.ReleaseMode()
+    time.sleep(1)
+    status, result = msc.CheckMode()
+print(f"[INIT] Debug mode entered: status={status}")
 
 master = RobotTaskmaster(
     task_name="inference",
@@ -179,21 +214,25 @@ class RTCWebSocketClient:
     def _send_thread(self):
         """Send observations at high frequency"""
         print("[client] Send thread started")
-        
+
         # Wait for connection
         self._connected.wait()
 
         prev_tick = time.perf_counter()
-        
-        while self._running and running.is_set():  
+
+        while self._running and running.is_set():
             start = time.time()
             try:
                 # Get observation
+                print("[client] Reading robot state...")
                 state = {
                     "arm_joints": master.motorstate[15:29],
                     "hand_joints": master.handstate,
                 }
+                print(f"[client] arm_joints shape: {state['arm_joints'].shape}, hand_joints shape: {state['hand_joints'].shape}")
+                print("[client] Getting camera frame...")
                 img_obs, state_obs = get_observation(camera, state)
+                print(f"[client] Got observation, img keys: {list(img_obs.keys())}, state keys: {list(state_obs.keys())}")
                 payload = {
                     "image": img_obs,
                     "state": state_obs,
@@ -270,36 +309,29 @@ def main(server_url):
     _last_target_yaw = None
 
     def apply_action_from_buffer(last_pd_target):
-        current_lr_arm_q, current_lr_arm_dq = master.get_robot_data()
-
-        have_vla = False
-
         with pred_action_lock:
             action = pred_action_buffer["actions"]
 
-            if action is not None:
-                have_vla = True
-                action = action[0]
+        if action is None:
+            # No VLA action yet — don't send any motor commands
+            return last_pd_target
 
+        action = action[0]
 
-        arm_cmd = None
-        hand_cmd = None
-        if have_vla:
-            if action.shape[0] < 26:
-                print("[CTRL] Invalid action shape:", action.shape)
-            else:
-                # Upper body only (26 dims): hands(14) + arms(14)
-                # Locomotion handled by Unitree controller
-                arm_cmd = action[14:28]
-                hand_cmd = action[:14]
+        if action.shape[0] < 26:
+            print("[CTRL] Invalid action shape:", action.shape)
+            return last_pd_target
 
-                master.prev_arm = arm_cmd
-                master.prev_hand = hand_cmd
-        
+        # Upper body only (26 dims): arms(14) + hands(12)
+        # Locomotion handled by Unitree controller
+        arm_cmd = action[0:14]
+        hand_cmd = action[14:26]
 
+        master.prev_arm = arm_cmd
+        master.prev_hand = hand_cmd
 
+        current_lr_arm_q, current_lr_arm_dq = master.get_robot_data()
         master.get_ik_observation(record=False)
-
 
         pd_target, pd_tauff, raw_action = master.body_ik.solve_whole_body_ik(
             left_wrist=None,
@@ -316,14 +348,12 @@ def main(server_url):
             (master.motorstate - master.default_dof_pos)[15:] / master.action_scale,
         ])
 
-        if arm_cmd is not None:
-            pd_target[15:] = arm_cmd
-            tau_arm = np.asarray(get_tauer(arm_cmd), dtype=np.float64).reshape(-1)
-            pd_tauff[15:] = tau_arm
+        pd_target[15:] = arm_cmd
+        tau_arm = np.asarray(get_tauer(arm_cmd), dtype=np.float64).reshape(-1)
+        pd_tauff[15:] = tau_arm
 
-        if hand_cmd is not None:
-            with master.dual_hand_data_lock:
-                master.hand_shm_array[:] = hand_cmd
+        with master.dual_hand_data_lock:
+            master.hand_shm_array[:] = hand_cmd
 
         master.body_ctrl.ctrl_whole_body(
             pd_target[15:], pd_tauff[15:], pd_target[:15], pd_tauff[:15]
@@ -350,12 +380,7 @@ def main(server_url):
         print("[WS] WebSocket thread stopped")
 
     try:
-        stabilize_thread = threading.Thread(target=master.maintain_standing, daemon=True)
-        stabilize_thread.start()
-        master.episode_kill_event.set()
-        print("[MAIN] Initialize with standing pose...")
-        time.sleep(30)
-        master.episode_kill_event.clear() 
+        print("[MAIN] Skipping stabilization, robot already standing.")
 
         master.reset_yaw_offset = True
 

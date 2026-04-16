@@ -24,7 +24,8 @@ from teleop.utils.weighted_moving_filter import WeightedMovingFilter
 class G1_29_BodyIK:
     def __init__(self, Unit_Test=False, Visualization=False):
         self.device = "cuda"
-        self.policy_pth = './amo_jit.pt'
+        _teleop_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.policy_pth = os.path.join(_teleop_dir, 'amo_jit.pt')
         self.policy_jit = torch.jit.load(self.policy_pth, map_location=self.device)
 
         self.action_scale = 0.25
@@ -37,7 +38,8 @@ class G1_29_BodyIK:
                 0.5, 0.0, -0.2, 0.3, 0.0, 0.0, 0.0,
             ])
 
-        virtual_urdf_path = "../assets/g1/g1_body29_hand14_virtual.urdf"
+        _real_dir = os.path.dirname(_teleop_dir)
+        virtual_urdf_path = os.path.join(_real_dir, "assets/g1/g1_body29_hand14_virtual.urdf")
         frame_names = {
             "left": "left_hand_palm_link",
             "right": "right_hand_palm_link",
@@ -57,14 +59,9 @@ class G1_29_BodyIK:
         self.Unit_Test = Unit_Test
         self.Visualization = Visualization
 
-        if not self.Unit_Test:
-            self.robot = pin.RobotWrapper.BuildFromURDF(
-                "../assets/g1/g1_body29_hand14.urdf", "../assets/g1/"
-            )
-        else:
-            self.robot = pin.RobotWrapper.BuildFromURDF(
-                "../../assets/g1/g1_body29_hand14.urdf", "../../assets/g1/"
-            )  # for test
+        _assets_g1 = os.path.join(_real_dir, "assets/g1/")
+        _urdf = os.path.join(_assets_g1, "g1_body29_hand14.urdf")
+        self.robot = pin.RobotWrapper.BuildFromURDF(_urdf, _assets_g1)
         
         self.mixed_jointsToLockIDs = [
             "left_hip_pitch_joint",

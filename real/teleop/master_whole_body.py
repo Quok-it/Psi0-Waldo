@@ -13,8 +13,7 @@ import torch
 from teleop.merger import DataMerger
 from teleop.robot_control.robot_body import G1_29_BodyController
 from teleop.robot_control.robot_body_ik import G1_29_BodyIK
-from teleop.robot_control.robot_hand_inspire import Inspire_Controller
-from teleop.robot_control.robot_hand_unitree import Dex3_1_Controller
+from teleop.robot_control.robot_hand_brainco import Brainco_Inference_Controller
 from teleop.utils.logger import logger
 from teleop.writers import IKDataWriter
 from teleop.robot_control.compute_tau import GetTauer
@@ -106,6 +105,7 @@ class RobotTaskmaster:
         
         self.motorstate = np.zeros(self.nj, dtype=np.float32)
         self.velstate = np.zeros(self.nj, dtype=np.float32)
+        self.handstate = np.zeros(12, dtype=np.float32)
         self.quat = np.zeros(4, dtype=np.float32)
         self.ang_vel = np.zeros(3, dtype=np.float32)
         self.last_action = np.zeros(self.nj)
@@ -140,12 +140,13 @@ class RobotTaskmaster:
         for i in range(self.extra_history_len):
             self.extra_history_buf.append(np.zeros(self.n_proprio))
         
-        self.adapter = torch.jit.load("adapter_jit.pt", map_location=self.device)
+        _dir = os.path.dirname(os.path.abspath(__file__))
+        self.adapter = torch.jit.load(os.path.join(_dir, "adapter_jit.pt"), map_location=self.device)
         self.adapter.eval()
         for param in self.adapter.parameters():
             param.requires_grad = False
         
-        norm_stats = torch.load("adapter_norm_stats.pt", weights_only=False)
+        norm_stats = torch.load(os.path.join(_dir, "adapter_norm_stats.pt"), weights_only=False)
         self.input_mean = torch.tensor(norm_stats['input_mean'], device=self.device, dtype=torch.float32)
         self.input_std = torch.tensor(norm_stats['input_std'], device=self.device, dtype=torch.float32)
         self.output_mean = torch.tensor(norm_stats['output_mean'], device=self.device, dtype=torch.float32)
@@ -191,19 +192,19 @@ class RobotTaskmaster:
                 print("body_ik ok!")
                 self.dual_hand_data_lock = Lock()
                 dual_hand_state_array = Array(
-                    "d", 14, lock=False
-                )  # [output] current left, right hand state(14) data.
+                    "d", 12, lock=False
+                )  # [output] current left, right hand state(12) data.
                 dual_hand_action_array = Array(
-                    "d", 14, lock=False
-                )  # [output] current left, right hand action(14) data.
+                    "d", 12, lock=False
+                )  # [output] current left, right hand action(12) data.
                 self.hand_shm = shared_memory.SharedMemory(
-                    create=True, size=14 * np.dtype(np.float64).itemsize
+                    create=True, size=12 * np.dtype(np.float64).itemsize
                 )
                 self.hand_shm_array = np.ndarray(
-                    (14,), dtype=np.float64, buffer=self.hand_shm.buf
+                    (12,), dtype=np.float64, buffer=self.hand_shm.buf
                 )
 
-                self.hand_ctrl = Dex3_1_Controller(
+                self.hand_ctrl = Brainco_Inference_Controller(
                     self.hand_shm_array,
                     self.dual_hand_data_lock,
                     dual_hand_state_array,
@@ -524,9 +525,10 @@ class RobotTaskmaster:
                 "orientation_quaternion"
             ]
 
+            # BrainCo has no pressure sensors; zero-fill the press region
             self.robot_shm_array[
                 odom_quat_end : odom_quat_end + robot_sizes.HAND_PRESS_SIZE
-            ] = hand_press_state.flatten()
+            ] = np.zeros(robot_sizes.HAND_PRESS_SIZE)
 
         # elif self.robot == "h1":
         #     self.robot_shm_array[rpy_start:] = imustate.rpy
@@ -718,8 +720,8 @@ class RobotTaskmaster:
                 self.setHandMotors(right_qpos, left_qpos)
             elif self.robot == "g1":
                 with self.dual_hand_data_lock:
-                    self.hand_shm_array[0:7] = left_qpos
-                    self.hand_shm_array[7:14] = right_qpos
+                    self.hand_shm_array[0:6] = left_qpos
+                    self.hand_shm_array[6:12] = right_qpos
 
             # logger.debug("Master: writing data")
             # logger.debug(f"Master: head_rmat: {head_rmat}")
@@ -822,14 +824,14 @@ class RobotTaskmaster:
         pred_action: np.array of shape (32,)
         """
         arm_poseList = pred_action[:14]
-        hand_poseList = pred_action[14:28]
+        hand_poseList = pred_action[14:26]
         current_lr_arm_q, current_lr_arm_dq = self.get_robot_data()
-        self.torso_roll = pred_action[28]
-        self.torso_pitch = pred_action[29]
-        self.torso_yaw = pred_action[30]
-        self.torso_height = pred_action[31]
+        self.torso_roll = pred_action[26]
+        self.torso_pitch = pred_action[27]
+        self.torso_yaw = pred_action[28]
+        self.torso_height = pred_action[29]
 
-        print("predicted torso r, p, y, h:", pred_action[28], pred_action[29], pred_action[30], pred_action[31])
+        print("predicted torso r, p, y, h:", pred_action[26], pred_action[27], pred_action[28], pred_action[29])
         self.get_ik_observation()
         pd_target, pd_tauff, raw_action = self.body_ik.solve_whole_body_ik(
             left_wrist=None,

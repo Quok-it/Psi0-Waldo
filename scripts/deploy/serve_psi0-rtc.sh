@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source .venv-psi/bin/activate
+source .venv/bin/activate
 
 export CUDA_VISIBLE_DEVICES=0
 echo "Training with $nprocs GPUs, which is/are $CUDA_VISIBLE_DEVICES"
