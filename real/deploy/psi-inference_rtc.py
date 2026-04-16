@@ -285,10 +285,10 @@ def main(server_url):
         arm_cmd = None
         hand_cmd = None
         if have_vla:
-            if action.shape[0] < 26:
+            if action.shape[0] < 28:
                 print("[CTRL] Invalid action shape:", action.shape)
             else:
-                # Upper body only (26 dims): hands(14) + arms(14)
+                # Upper body only (28 dims): hands(14) + arms(14)
                 # Locomotion handled by Unitree controller
                 arm_cmd = action[14:28]
                 hand_cmd = action[:14]

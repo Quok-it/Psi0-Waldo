@@ -85,7 +85,8 @@ class RealTimeChunkController:
         self._infer_th.start()
 
     def replace_prev_actions_to_obs(self, o, previous_rpy, previous_height):
-        o['obs'] = np.concatenate([o['obs'][:, :, :28], previous_rpy[np.newaxis, np.newaxis, :], previous_height[np.newaxis, np.newaxis, :], o['obs'][:, :, 32:]], axis=-1) # (1, 1, 28) -> (1, 1, 32)
+        # No-op for StackCups/BrainCo: 26-dim state (arms+hands) has no torso RPY/height,
+        # indices 26-35 are just padding zeros in both action and state.
         return o
 
         
@@ -296,17 +297,19 @@ class Server:
         for cam_idx, img_key in enumerate(self.launch_cfg.data.transform.repack.image_keys):
             imgs[f"cam{cam_idx}"] = Image.fromarray(np.clip(image_dict[img_key], 0, 255).astype(np.uint8))
         
-        hand_joints = state_dict["hand_joints"].copy() # shape (14,)
         arm_joints = state_dict["arm_joints"].copy() # shape (14,)
-        tmp_torso_rpy = np.array([0.0, 0.0, 0.0], dtype=np.float32)
-        tmp_torso_height = np.array([0.75], dtype=np.float32)
-        obs = np.concatenate([hand_joints, arm_joints, tmp_torso_rpy, tmp_torso_height], axis=-1) # (32,)
+        hand_joints = state_dict["hand_joints"].copy() # shape (12,)
+        obs = np.concatenate([arm_joints, hand_joints], axis=-1) # (26,)
+        print(f"[DEBUG obs] arm_joints({arm_joints.shape}): {arm_joints}")
+        print(f"[DEBUG obs] hand_joints({hand_joints.shape}): {hand_joints}")
+        print(f"[DEBUG obs] raw obs({obs.shape}): {obs}")
 
         # normalize states
         assert self.maxmin.normalize_state, "check"
         if self.maxmin.pad_state_dim != len(obs):
             obs = pad_to_len(obs, self.maxmin.pad_state_dim, dim=0)[0]
         obs = self.maxmin.normalize_state_func(obs) # shape (32,)
+        print(f"[DEBUG obs] normalized obs({obs.shape}): {obs}")
         obs = obs[np.newaxis, np.newaxis, :] # (32,) -> (1, 1, 32)
 
 
@@ -462,7 +465,9 @@ class Server:
             # 2. Execute step
             action = self.controller.step(obs_next) # (1, D)
             pred_action = self._postprocess_action(action) # (1, D)
-            
+            print(f"[DEBUG action] raw normalized({action.shape}): {action.flatten()[:10]}...")
+            print(f"[DEBUG action] denormalized({pred_action.shape}): {pred_action.flatten()[:26]}")
+
             # 3. Update latest_action
             with self.action_lock:
                 self.latest_action = pred_action
